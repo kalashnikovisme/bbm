@@ -49,26 +49,30 @@ class NbaClient
     return nil unless linescore
 
     rows = linescore.css('tbody tr')
-    visitor_row = find_row(rows, 'visitor')
-    home_row = find_row(rows, 'home')
-
+    visitor_row, home_row = %w[visitor home].map { |role| find_row(rows, role) }
     return nil unless visitor_row && home_row
 
-    visitor_team_name = extract_team_name(visitor_row)
-    home_team_name = extract_team_name(home_row)
-    visitor_score = extract_points(visitor_row)
-    home_score = extract_points(home_row)
-
-    return nil unless visitor_team_name && home_team_name && visitor_score && home_score
+    visitor_team = build_team(visitor_row)
+    home_team = build_team(home_row)
+    return nil unless visitor_team && home_team
 
     {
       'date' => date.strftime('%Y-%m-%d'),
       'status' => extract_status(summary),
-      'home_team' => { 'full_name' => home_team_name },
-      'visitor_team' => { 'full_name' => visitor_team_name },
-      'home_team_score' => home_score,
-      'visitor_team_score' => visitor_score
+      'home_team' => { 'full_name' => home_team[:name] },
+      'visitor_team' => { 'full_name' => visitor_team[:name] },
+      'home_team_score' => home_team[:points],
+      'visitor_team_score' => visitor_team[:points]
     }
+  end
+
+  def build_team(row)
+    name = extract_team_name(row)
+    points = extract_points(row)
+
+    return nil unless name && points
+
+    { name: name, points: points }
   end
 
   def find_row(rows, keyword)

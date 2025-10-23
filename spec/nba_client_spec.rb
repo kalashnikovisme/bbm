@@ -33,8 +33,18 @@ RSpec.describe NbaClient do
 
       before do
         stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
-          .with(query: hash_including('month' => yesterday.month.to_s, 'day' => yesterday.day.to_s, 'year' => yesterday.year.to_s))
-          .to_return(status: 200, body: scoreboard_html, headers: { 'Content-Type' => 'text/html' })
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
+          .to_return(
+            status: 200,
+            body: scoreboard_html,
+            headers: { 'Content-Type' => 'text/html' }
+          )
       end
 
       it 'returns parsed games data' do
@@ -54,8 +64,18 @@ RSpec.describe NbaClient do
     context 'when the scoreboard has no games' do
       before do
         stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
-          .with(query: hash_including('month' => yesterday.month.to_s, 'day' => yesterday.day.to_s, 'year' => yesterday.year.to_s))
-          .to_return(status: 200, body: '<html><body>No games</body></html>', headers: { 'Content-Type' => 'text/html' })
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
+          .to_return(
+            status: 200,
+            body: '<html><body>No games</body></html>',
+            headers: { 'Content-Type' => 'text/html' }
+          )
       end
 
       it 'returns empty array' do
@@ -68,7 +88,13 @@ RSpec.describe NbaClient do
     context 'when the request fails' do
       before do
         stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
-          .with(query: hash_including('month' => yesterday.month.to_s, 'day' => yesterday.day.to_s, 'year' => yesterday.year.to_s))
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
           .to_return(status: 500, body: 'Internal Server Error')
       end
 
