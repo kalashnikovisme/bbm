@@ -11,20 +11,38 @@ RSpec.describe NbaClient do
         <<~HTML
           <html>
             <body>
-              <div class="game_summary">
-                <table class="linescore">
+              <div class="game_summary expanded">
+                <table class="teams">
                   <tbody>
-                    <tr>
-                      <th data-stat="visitor_team_name"><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></th>
-                      <td data-stat="visitor_pts">112</td>
+                    <tr class="winner">
+                      <td><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></td>
+                      <td class="right">112</td>
+                      <td class="right gamelink">
+                        <a href="/boxscores/202410150BOS.html">F<span class="no_mobile">inal</span></a>
+                      </td>
                     </tr>
-                    <tr>
-                      <th data-stat="home_team_name"><a href="/teams/BOS/2024.html">Boston Celtics</a></th>
-                      <td data-stat="home_pts">108</td>
+                    <tr class="loser">
+                      <td><a href="/teams/BOS/2024.html">Boston Celtics</a></td>
+                      <td class="right">108</td>
+                      <td class="right">&nbsp;</td>
                     </tr>
                   </tbody>
                 </table>
-                <div class="game_status">Final</div>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></td>
+                      <td class="center">34</td>
+                    </tr>
+                    <tr>
+                      <td><a href="/teams/BOS/2024.html">Boston Celtics</a></td>
+                      <td class="center">27</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="game_summary_meta">
+                  <p class="game_status">Final</p>
+                </div>
               </div>
             </body>
           </html>
@@ -58,6 +76,179 @@ RSpec.describe NbaClient do
         expect(games.first['visitor_team_score']).to eq(112)
         expect(games.first['status']).to eq('Final')
         expect(games.first['date']).to eq(yesterday.strftime('%Y-%m-%d'))
+      end
+    end
+
+    context 'when scoreboard is wrapped in HTML comments' do
+      let(:scoreboard_html) do
+        <<~HTML
+          <html>
+            <body>
+              <!--
+              <div class="game_summary">
+                <table class="teams">
+                  <tbody>
+                    <tr>
+                      <th scope="row"><a href="/teams/CHI/2024.html">Chicago Bulls</a></th>
+                      <td>30</td>
+                      <td>24</td>
+                      <td>29</td>
+                      <td>23</td>
+                      <td>106</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><a href="/teams/MIL/2024.html">Milwaukee Bucks</a></th>
+                      <td>28</td>
+                      <td>27</td>
+                      <td>22</td>
+                      <td>30</td>
+                      <td>107</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="game_status">Final</div>
+              </div>
+              -->
+            </body>
+          </html>
+        HTML
+      end
+
+      before do
+        stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
+          .to_return(
+            status: 200,
+            body: scoreboard_html,
+            headers: { 'Content-Type' => 'text/html' }
+          )
+      end
+
+      it 'parses games that are hidden behind HTML comments' do
+        games = client.yesterday_games
+
+        expect(games.length).to eq(1)
+        first_game = games.first
+        expect(first_game['visitor_team']['full_name']).to eq('Chicago Bulls')
+        expect(first_game['home_team']['full_name']).to eq('Milwaukee Bucks')
+        expect(first_game['visitor_team_score']).to eq(106)
+        expect(first_game['home_team_score']).to eq(107)
+      end
+    end
+
+    context 'when scoreboard rows lack explicit visitor/home markers' do
+      let(:scoreboard_html) do
+        <<~HTML
+          <html>
+            <body>
+              <div class="game_summary">
+                <table>
+                  <tbody>
+                    <tr>
+                      <th scope="row"><a href="/teams/MIA/2024.html">Miami Heat</a></th>
+                      <td class="center">28</td>
+                      <td class="center strong">102</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><a href="/teams/NYK/2024.html">New York Knicks</a></th>
+                      <td class="center">25</td>
+                      <td class="center strong">99</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="game_status">Final</div>
+              </div>
+            </body>
+          </html>
+        HTML
+      end
+
+      before do
+        stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
+          .to_return(
+            status: 200,
+            body: scoreboard_html,
+            headers: { 'Content-Type' => 'text/html' }
+          )
+      end
+
+      it 'infers the visitor and home teams by row order' do
+        games = client.yesterday_games
+
+        expect(games.length).to eq(1)
+        first_game = games.first
+        expect(first_game['visitor_team']['full_name']).to eq('Miami Heat')
+        expect(first_game['home_team']['full_name']).to eq('New York Knicks')
+        expect(first_game['visitor_team_score']).to eq(102)
+        expect(first_game['home_team_score']).to eq(99)
+      end
+    end
+
+    context 'when scoreboard uses legacy linescore tables' do
+      let(:scoreboard_html) do
+        <<~HTML
+          <html>
+            <body>
+              <div class="game_summary">
+                <table class="linescore">
+                  <tbody>
+                    <tr class="team visitor">
+                      <th scope="row"><a href="/teams/DAL/2024.html">Dallas Mavericks</a></th>
+                      <td class="center">25</td>
+                      <td class="center strong">101</td>
+                    </tr>
+                    <tr class="team home">
+                      <th scope="row"><a href="/teams/PHX/2024.html">Phoenix Suns</a></th>
+                      <td class="center">30</td>
+                      <td class="center strong">110</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="game_status">Final</div>
+              </div>
+            </body>
+          </html>
+        HTML
+      end
+
+      before do
+        stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
+          .to_return(
+            status: 200,
+            body: scoreboard_html,
+            headers: { 'Content-Type' => 'text/html' }
+          )
+      end
+
+      it 'still parses games from the legacy layout' do
+        games = client.yesterday_games
+
+        expect(games.length).to eq(1)
+        game = games.first
+        expect(game['visitor_team']['full_name']).to eq('Dallas Mavericks')
+        expect(game['home_team']['full_name']).to eq('Phoenix Suns')
+        expect(game['visitor_team_score']).to eq(101)
+        expect(game['home_team_score']).to eq(110)
       end
     end
 
@@ -101,6 +292,65 @@ RSpec.describe NbaClient do
       it 'raises an error' do
         expect { client.yesterday_games }.to raise_error(/Failed to fetch games/)
       end
+    end
+  end
+
+  describe '#games_for' do
+    let(:target_date) { Date.new(2025, 10, 22) }
+    let(:scoreboard_html) do
+      <<~HTML
+        <html>
+          <body>
+            <div class="game_summary">
+              <table class="teams">
+                <tbody>
+                  <tr class="team visitor">
+                    <th scope="row" data-stat="team_name"><a href="/teams/MIA/2025.html">Miami Heat</a></th>
+                    <td class="center strong" data-stat="team_pts">98</td>
+                  </tr>
+                  <tr class="team home">
+                    <th scope="row" data-stat="team_name"><a href="/teams/NYK/2025.html">New York Knicks</a></th>
+                    <td class="center strong" data-stat="team_pts">102</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="game_summary_meta">
+                <p class="game_status">Final</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      HTML
+    end
+
+    before do
+      stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
+        .with(
+          query: hash_including(
+            'month' => target_date.month.to_s,
+            'day' => target_date.day.to_s,
+            'year' => target_date.year.to_s
+          )
+        )
+        .to_return(
+          status: 200,
+          body: scoreboard_html,
+          headers: { 'Content-Type' => 'text/html' }
+        )
+    end
+
+    it 'returns games for the provided date' do
+      games = client.games_for(target_date)
+
+      expect(games.length).to eq(1)
+      game = games.first
+
+      expect(game['date']).to eq('2025-10-22')
+      expect(game['home_team']['full_name']).to eq('New York Knicks')
+      expect(game['visitor_team']['full_name']).to eq('Miami Heat')
+      expect(game['home_team_score']).to eq(102)
+      expect(game['visitor_team_score']).to eq(98)
+      expect(game['status']).to eq('Final')
     end
   end
 end

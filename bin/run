@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'date'
+require_relative '../app'
+
+def parse_date(argument)
+  return Date.today - 1 if argument.nil? || argument.empty?
+
+  Date.parse(argument)
+rescue ArgumentError
+  warn "Invalid date: #{argument}. Please provide a date in YYYY-MM-DD format."
+  exit 1
+end
+
+App.new.run(parse_date(ARGV.first))
