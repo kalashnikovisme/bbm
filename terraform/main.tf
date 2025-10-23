@@ -14,8 +14,8 @@ provider "digitalocean" {
 }
 
 locals {
-  ssh_key_name        = trim(var.ssh_key_name)
-  ssh_key_fingerprint = trim(var.ssh_fingerprint)
+  ssh_key_name        = trimspace(var.ssh_key_name)
+  ssh_key_fingerprint = trimspace(var.ssh_fingerprint)
 }
 
 data "digitalocean_ssh_key" "selected_by_name" {

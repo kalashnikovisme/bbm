@@ -34,7 +34,7 @@ variable "ssh_key_name" {
   default     = ""
 
   validation {
-    condition     = length(trim(var.ssh_key_name)) > 0 || length(trim(var.ssh_fingerprint)) > 0
+    condition     = length(trimspace(var.ssh_key_name)) > 0 || length(trimspace(var.ssh_fingerprint)) > 0
     error_message = "Provide either ssh_key_name or ssh_fingerprint to reference an existing SSH key in DigitalOcean."
   }
 }
