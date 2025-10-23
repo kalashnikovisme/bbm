@@ -17,7 +17,7 @@ A Ruby application that fetches NBA game scores from yesterday and sends them vi
 - Telegram Bot Token (from [@BotFather](https://t.me/botfather))
 - Your Telegram Chat ID
 - DigitalOcean Account (for automated deployment)
-- Terraform >= 1.0 (for automated deployment)
+- Terraform >= 1.2 (for automated deployment)
 
 ## Local Setup
 
@@ -105,10 +105,10 @@ region               = "nyc1"
 droplet_size         = "s-1vcpu-1gb"
 ssh_private_key_path = "~/.ssh/id_rsa"
 ssh_key_name         = "your_digitalocean_ssh_key_name"  # Provide either this or ssh_fingerprint
-ssh_fingerprint      = ""                                # Optional if ssh_key_name is set
+ssh_fingerprint      = ""                                # Optional if ssh_key_name is set; takes precedence when both are provided
 ```
 
-Set either `ssh_key_name` or `ssh_fingerprint` to reference an SSH key that already exists in your DigitalOcean account (Settings → Security). Terraform verifies that the key exists before creating the droplet.
+Set either `ssh_key_name` or `ssh_fingerprint` to reference an SSH key that already exists in your DigitalOcean account (Settings → Security). Terraform verifies that the key exists before creating the droplet and requires one of these values to be provided. If both are set, the fingerprint takes precedence.
 
 4. Initialize Terraform:
 ```bash

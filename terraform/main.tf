@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.2"
   
   required_providers {
     digitalocean = {
@@ -16,23 +16,25 @@ provider "digitalocean" {
 locals {
   ssh_key_name        = trimspace(var.ssh_key_name)
   ssh_key_fingerprint = trimspace(var.ssh_fingerprint)
-}
-
-data "digitalocean_ssh_key" "selected_by_name" {
-  count = local.ssh_key_name != "" ? 1 : 0
-  name  = local.ssh_key_name
+  use_fingerprint     = local.ssh_key_fingerprint != ""
+  use_name            = !local.use_fingerprint && local.ssh_key_name != ""
 }
 
 data "digitalocean_ssh_key" "selected_by_fingerprint" {
-  count       = local.ssh_key_name == "" && local.ssh_key_fingerprint != "" ? 1 : 0
+  count       = local.use_fingerprint ? 1 : 0
   fingerprint = local.ssh_key_fingerprint
 }
 
+data "digitalocean_ssh_key" "selected_by_name" {
+  count = local.use_name ? 1 : 0
+  name  = local.ssh_key_name
+}
+
 locals {
-  droplet_ssh_keys = compact([
-    try(data.digitalocean_ssh_key.selected_by_name[0].fingerprint, null),
-    try(data.digitalocean_ssh_key.selected_by_fingerprint[0].fingerprint, null),
-  ])
+  droplet_ssh_keys = compact(concat(
+    data.digitalocean_ssh_key.selected_by_fingerprint[*].fingerprint,
+    data.digitalocean_ssh_key.selected_by_name[*].fingerprint,
+  ))
 }
 
 resource "digitalocean_droplet" "bbm" {
@@ -41,6 +43,13 @@ resource "digitalocean_droplet" "bbm" {
   region   = var.region
   size     = var.droplet_size
   ssh_keys = local.droplet_ssh_keys
+
+  lifecycle {
+    precondition {
+      condition     = length(local.droplet_ssh_keys) > 0
+      error_message = "Set either ssh_fingerprint or ssh_key_name to reference an existing SSH key uploaded to DigitalOcean."
+    }
+  }
 
   # Wait for droplet to be ready
   provisioner "remote-exec" {

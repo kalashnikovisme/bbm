@@ -32,11 +32,6 @@ variable "ssh_key_name" {
   description = "Name of the SSH key uploaded to DigitalOcean (alternative to ssh_fingerprint)"
   type        = string
   default     = ""
-
-  validation {
-    condition     = length(trimspace(var.ssh_key_name)) > 0 || length(trimspace(var.ssh_fingerprint)) > 0
-    error_message = "Provide either ssh_key_name or ssh_fingerprint to reference an existing SSH key in DigitalOcean."
-  }
 }
 
 variable "nba_api_key" {
