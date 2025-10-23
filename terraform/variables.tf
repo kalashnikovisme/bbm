@@ -16,16 +16,15 @@ variable "droplet_size" {
   default     = "s-1vcpu-1gb"
 }
 
-variable "ssh_public_key_path" {
-  description = "Path to SSH public key"
-  type        = string
-  default     = "~/.ssh/id_rsa.pub"
-}
-
 variable "ssh_private_key_path" {
   description = "Path to SSH private key"
   type        = string
   default     = "~/.ssh/id_rsa"
+}
+
+variable "ssh_fingerprint" {
+  description = "Fingerprint of the SSH key uploaded to DigitalOcean"
+  type        = string
 }
 
 variable "nba_api_key" {

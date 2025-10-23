@@ -13,17 +13,12 @@ provider "digitalocean" {
   token = var.do_token
 }
 
-resource "digitalocean_ssh_key" "bbm" {
-  name       = "bbm-ssh-key"
-  public_key = file(var.ssh_public_key_path)
-}
-
 resource "digitalocean_droplet" "bbm" {
   image    = "ubuntu-22-04-x64"
   name     = "bbm-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
   region   = var.region
   size     = var.droplet_size
-  ssh_keys = [digitalocean_ssh_key.bbm.fingerprint]
+  ssh_keys = [var.ssh_fingerprint]
 
   # Wait for droplet to be ready
   provisioner "remote-exec" {

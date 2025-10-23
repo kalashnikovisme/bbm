@@ -101,7 +101,13 @@ do_token              = "your_digitalocean_api_token"
 nba_api_key          = ""  # Optional
 telegram_bot_token   = "your_telegram_bot_token"
 telegram_chat_id     = "your_telegram_chat_id"
+region               = "nyc1"
+droplet_size         = "s-1vcpu-1gb"
+ssh_private_key_path = "~/.ssh/id_rsa"
+ssh_fingerprint      = "your_ssh_key_fingerprint"
 ```
+
+The `ssh_fingerprint` must match an SSH key that already exists in your DigitalOcean account (Settings → Security).
 
 4. Initialize Terraform:
 ```bash
@@ -159,7 +165,7 @@ Set these in your repository settings (Settings → Secrets → Actions):
 - `TELEGRAM_CHAT_ID`: Your Telegram chat ID
 - `NBA_API_KEY`: Optional NBA API key
 - `SSH_PRIVATE_KEY`: Your SSH private key content
-- `SSH_PUBLIC_KEY`: Your SSH public key content
+- `SSH_FINGERPRINT`: Fingerprint of the SSH key uploaded to DigitalOcean
 
 ## Project Structure
 
