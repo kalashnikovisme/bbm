@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'date'
 require 'dotenv/load'
 require_relative 'lib/nba_client'
 require_relative 'lib/telegram_client'
@@ -14,11 +15,17 @@ class App
   end
 
   def run
-    puts "Fetching yesterday's NBA games..."
+    target_date = Date.today - 1
+    scoreboard_url = scoreboard_url_for(target_date)
+
+    puts "Fetching yesterday's NBA games (#{target_date})..."
+    puts "Scoreboard URL: #{scoreboard_url}"
+
     games = @nba_client.yesterday_games
 
     if games.empty?
       puts 'No games found for yesterday.'
+      puts "Checked scoreboard: #{scoreboard_url}"
       @telegram_client.send_message('No NBA games were played yesterday.')
       return
     end
@@ -26,12 +33,25 @@ class App
     puts "Found #{games.length} game(s). Sending to Telegram..."
 
     games.each_with_index do |game, index|
-      puts "Sending game #{index + 1}/#{games.length}..."
+      visitor_team = game.dig('visitor_team', 'full_name')
+      home_team = game.dig('home_team', 'full_name')
+      visitor_score = game['visitor_team_score']
+      home_score = game['home_team_score']
+      status = game['status']
+
+      puts "Sending game #{index + 1}/#{games.length}: #{visitor_team} #{visitor_score} @ #{home_team} #{home_score} (#{status})"
       @telegram_client.send_game_score(game)
+      puts "Game #{index + 1} dispatched to Telegram"
       sleep(1) # Rate limiting - wait 1 second between messages
     end
 
     puts 'All games sent successfully!'
+  end
+
+  private
+
+  def scoreboard_url_for(date)
+    "https://www.basketball-reference.com/boxscores/?month=#{date.month}&day=#{date.day}&year=#{date.year}"
   end
 end
 

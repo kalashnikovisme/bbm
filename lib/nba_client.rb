@@ -15,11 +15,21 @@ class NbaClient
 
   def yesterday_games
     date = Date.today - 1
-    response = self.class.get('/boxscores/', query: query_for(date), headers: request_headers)
+    query = query_for(date)
 
-    raise "Failed to fetch games: #{response.code} - #{response.message}" unless response.success?
+    log("Fetching scoreboard for #{date} with query #{query}")
 
-    parse_games(response.body, date)
+    response = self.class.get('/boxscores/', query: query, headers: request_headers)
+
+    response_message = response.respond_to?(:message) ? response.message : nil
+    log("Received HTTP #{response.code}#{" #{response_message}" if response_message}")
+
+    raise "Failed to fetch games: #{response.code} - #{response_message || 'Unknown error'}" unless response.success?
+
+    games = parse_games(response.body, date)
+    log("Finished parsing scoreboard: #{games.length} game(s) extracted")
+
+    games
   end
 
   private
@@ -39,16 +49,36 @@ class NbaClient
   def parse_games(html, date)
     document = Nokogiri::HTML(html)
 
-    extract_game_summaries(document).filter_map do |summary|
-      parse_game_summary(summary, date)
+    summaries = extract_game_summaries(document)
+    log("Found #{summaries.length} potential game summary section(s)")
+
+    games = []
+
+    summaries.each_with_index do |summary, index|
+      log("Parsing game summary ##{index + 1}")
+      game = parse_game_summary(summary, date)
+
+      if game
+        log("Parsed game summary ##{index + 1}: #{format_game_log(game)}")
+        games << game
+      else
+        log("Skipping game summary ##{index + 1}: insufficient data")
+      end
     end
+
+    games
   end
 
   def extract_game_summaries(document)
     summaries = document.css('div.game_summary').to_a
-    return summaries unless summaries.empty?
+    unless summaries.empty?
+      log("Discovered #{summaries.length} game summary div(s) in main document")
+      return summaries
+    end
 
-    document.xpath('//comment()').flat_map do |comment|
+    log('No game summaries found in main document; inspecting HTML comments')
+
+    comment_summaries = document.xpath('//comment()').flat_map do |comment|
       next [] unless comment.text.include?('game_summary')
 
       fragment = Nokogiri::HTML(comment.text)
@@ -56,11 +86,18 @@ class NbaClient
     rescue Nokogiri::XML::SyntaxError
       []
     end
+
+    log("Discovered #{comment_summaries.length} game summary div(s) inside HTML comments") unless comment_summaries.empty?
+
+    comment_summaries
   end
 
   def parse_game_summary(summary, date)
     table, rows = locate_team_rows(summary)
-    return nil unless table && rows.length >= 2
+    unless table && rows.length >= 2
+      log('Skipping summary: unable to locate at least two team rows')
+      return nil
+    end
 
     visitor_row = find_row(rows, 'visitor') || rows[0]
     home_row = find_row(rows, 'home') || rows[1]
@@ -69,11 +106,17 @@ class NbaClient
       home_row = rows.reject { |row| row.equal?(visitor_row) }.first
     end
 
-    return nil unless visitor_row && home_row
+    unless visitor_row && home_row
+      log('Skipping summary: visitor or home row could not be determined')
+      return nil
+    end
 
     visitor_team = build_team(visitor_row)
     home_team = build_team(home_row)
-    return nil unless visitor_team && home_team
+    unless visitor_team && home_team
+      log('Skipping summary: unable to extract team names or scores')
+      return nil
+    end
 
     {
       'date' => date.strftime('%Y-%m-%d'),
@@ -166,5 +209,19 @@ class NbaClient
     status_node = summary.at_css('.game_status, .game_summary .status, .game_summary_status strong')
     status = status_node&.text&.strip
     status.nil? || status.empty? ? 'Final' : status
+  end
+
+  def format_game_log(game)
+    visitor_team = game.dig('visitor_team', 'full_name')
+    visitor_score = game['visitor_team_score']
+    home_team = game.dig('home_team', 'full_name')
+    home_score = game['home_team_score']
+    status = game['status']
+
+    "#{visitor_team} #{visitor_score} @ #{home_team} #{home_score} (#{status})"
+  end
+
+  def log(message)
+    puts "[NbaClient] #{message}"
   end
 end
