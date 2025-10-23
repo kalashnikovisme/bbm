@@ -137,6 +137,30 @@ crontab -e
 
 Note: The cron time `0 8 * * *` is 8 AM UTC, which equals 3 AM EST (UTC-5).
 
+### GitHub Actions Manual Deployment
+
+You can also deploy the bot manually using GitHub Actions:
+
+1. Go to your repository on GitHub
+2. Navigate to **Actions** → **Deploy Bot**
+3. Click **Run workflow**
+4. Choose an action:
+   - `apply-and-destroy`: Creates droplet, runs bot, destroys droplet (default)
+   - `apply-only`: Only creates droplet and runs bot
+   - `destroy-only`: Only destroys existing infrastructure
+5. Click **Run workflow** to start
+
+#### Required GitHub Secrets
+
+Set these in your repository settings (Settings → Secrets → Actions):
+
+- `DO_TOKEN`: Your DigitalOcean API token
+- `TELEGRAM_BOT_TOKEN`: Your Telegram bot token
+- `TELEGRAM_CHAT_ID`: Your Telegram chat ID
+- `NBA_API_KEY`: Optional NBA API key
+- `SSH_PRIVATE_KEY`: Your SSH private key content
+- `SSH_PUBLIC_KEY`: Your SSH public key content
+
 ## Project Structure
 
 ```
