@@ -1,0 +1,10 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+do_token              = "your_digitalocean_token"
+nba_api_key          = ""  # Optional
+telegram_bot_token   = "your_telegram_bot_token"
+telegram_chat_id     = "your_telegram_chat_id"
+region               = "nyc1"
+droplet_size         = "s-1vcpu-1gb"
+ssh_public_key_path  = "~/.ssh/id_rsa.pub"
+ssh_private_key_path = "~/.ssh/id_rsa"
