@@ -25,6 +25,18 @@ variable "ssh_private_key_path" {
 variable "ssh_fingerprint" {
   description = "Fingerprint of the SSH key uploaded to DigitalOcean"
   type        = string
+  default     = ""
+}
+
+variable "ssh_key_name" {
+  description = "Name of the SSH key uploaded to DigitalOcean (alternative to ssh_fingerprint)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = length(trim(var.ssh_key_name)) > 0 || length(trim(var.ssh_fingerprint)) > 0
+    error_message = "Provide either ssh_key_name or ssh_fingerprint to reference an existing SSH key in DigitalOcean."
+  }
 }
 
 variable "nba_api_key" {

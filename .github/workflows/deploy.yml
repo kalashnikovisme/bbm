@@ -34,7 +34,8 @@ jobs:
         telegram_bot_token   = "${{ secrets.TELEGRAM_BOT_TOKEN }}"
         telegram_chat_id     = "${{ secrets.TELEGRAM_CHAT_ID }}"
         ssh_private_key_path = "~/.ssh/id_rsa"
-        ssh_fingerprint      = "${{ secrets.SSH_FINGERPRINT }}"
+        ssh_key_name         = "${{ secrets.SSH_KEY_NAME || '' }}"
+        ssh_fingerprint      = "${{ secrets.SSH_FINGERPRINT || '' }}"
         EOF
 
     - name: Setup SSH key

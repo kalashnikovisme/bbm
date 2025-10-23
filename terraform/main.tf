@@ -13,12 +13,34 @@ provider "digitalocean" {
   token = var.do_token
 }
 
+locals {
+  ssh_key_name        = trim(var.ssh_key_name)
+  ssh_key_fingerprint = trim(var.ssh_fingerprint)
+}
+
+data "digitalocean_ssh_key" "selected_by_name" {
+  count = local.ssh_key_name != "" ? 1 : 0
+  name  = local.ssh_key_name
+}
+
+data "digitalocean_ssh_key" "selected_by_fingerprint" {
+  count       = local.ssh_key_name == "" && local.ssh_key_fingerprint != "" ? 1 : 0
+  fingerprint = local.ssh_key_fingerprint
+}
+
+locals {
+  droplet_ssh_keys = compact([
+    try(data.digitalocean_ssh_key.selected_by_name[0].fingerprint, null),
+    try(data.digitalocean_ssh_key.selected_by_fingerprint[0].fingerprint, null),
+  ])
+}
+
 resource "digitalocean_droplet" "bbm" {
   image    = "ubuntu-22-04-x64"
   name     = "bbm-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
   region   = var.region
   size     = var.droplet_size
-  ssh_keys = [var.ssh_fingerprint]
+  ssh_keys = local.droplet_ssh_keys
 
   # Wait for droplet to be ready
   provisioner "remote-exec" {

@@ -104,10 +104,11 @@ telegram_chat_id     = "your_telegram_chat_id"
 region               = "nyc1"
 droplet_size         = "s-1vcpu-1gb"
 ssh_private_key_path = "~/.ssh/id_rsa"
-ssh_fingerprint      = "your_ssh_key_fingerprint"
+ssh_key_name         = "your_digitalocean_ssh_key_name"  # Provide either this or ssh_fingerprint
+ssh_fingerprint      = ""                                # Optional if ssh_key_name is set
 ```
 
-The `ssh_fingerprint` must match an SSH key that already exists in your DigitalOcean account (Settings → Security).
+Set either `ssh_key_name` or `ssh_fingerprint` to reference an SSH key that already exists in your DigitalOcean account (Settings → Security). Terraform verifies that the key exists before creating the droplet.
 
 4. Initialize Terraform:
 ```bash
@@ -165,7 +166,8 @@ Set these in your repository settings (Settings → Secrets → Actions):
 - `TELEGRAM_CHAT_ID`: Your Telegram chat ID
 - `NBA_API_KEY`: Optional NBA API key
 - `SSH_PRIVATE_KEY`: Your SSH private key content
-- `SSH_FINGERPRINT`: Fingerprint of the SSH key uploaded to DigitalOcean
+- `SSH_FINGERPRINT`: Fingerprint of the SSH key uploaded to DigitalOcean (optional if `SSH_KEY_NAME` is set)
+- `SSH_KEY_NAME`: Name of the SSH key uploaded to DigitalOcean (optional if `SSH_FINGERPRINT` is set)
 
 ## Project Structure
 
