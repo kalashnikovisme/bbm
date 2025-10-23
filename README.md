@@ -58,8 +58,22 @@ TELEGRAM_CHAT_ID=your_chat_id   # Your Telegram chat/user ID
 
 ## Running Locally
 
+### Using Ruby directly
+
 ```bash
 ruby app.rb
+```
+
+### Using Make
+
+```bash
+make run
+```
+
+### Using Docker
+
+```bash
+docker-compose up
 ```
 
 The application will:
@@ -199,6 +213,21 @@ Essentially free! 💰
 - `NBA_API_KEY`: Optional API key for Balldontlie
 - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token
 - `TELEGRAM_CHAT_ID`: Your Telegram chat or channel ID
+
+## Available Commands
+
+This project includes a Makefile for convenience:
+
+```bash
+make help          # Show all available commands
+make install       # Install dependencies
+make test          # Run tests
+make lint          # Run linter
+make lint-fix      # Auto-fix linting issues
+make run           # Run the application
+make setup         # Initial setup
+make terraform-*   # Terraform-related commands
+```
 
 ## Troubleshooting
 
