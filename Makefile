@@ -19,7 +19,7 @@ lint-fix: ## Auto-fix linting issues
 	bundle exec rubocop -A
 
 run: ## Run the application
-	ruby app.rb
+        bin/run
 
 clean: ## Clean temporary files
 	rm -rf tmp/ vendor/bundle .bundle

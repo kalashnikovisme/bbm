@@ -286,4 +286,63 @@ RSpec.describe NbaClient do
       end
     end
   end
+
+  describe '#games_for' do
+    let(:target_date) { Date.new(2025, 10, 22) }
+    let(:scoreboard_html) do
+      <<~HTML
+        <html>
+          <body>
+            <div class="game_summary">
+              <table class="teams">
+                <tbody>
+                  <tr class="team visitor">
+                    <th scope="row" data-stat="team_name"><a href="/teams/MIA/2025.html">Miami Heat</a></th>
+                    <td class="center strong" data-stat="team_pts">98</td>
+                  </tr>
+                  <tr class="team home">
+                    <th scope="row" data-stat="team_name"><a href="/teams/NYK/2025.html">New York Knicks</a></th>
+                    <td class="center strong" data-stat="team_pts">102</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="game_summary_meta">
+                <p class="game_status">Final</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      HTML
+    end
+
+    before do
+      stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
+        .with(
+          query: hash_including(
+            'month' => target_date.month.to_s,
+            'day' => target_date.day.to_s,
+            'year' => target_date.year.to_s
+          )
+        )
+        .to_return(
+          status: 200,
+          body: scoreboard_html,
+          headers: { 'Content-Type' => 'text/html' }
+        )
+    end
+
+    it 'returns games for the provided date' do
+      games = client.games_for(target_date)
+
+      expect(games.length).to eq(1)
+      game = games.first
+
+      expect(game['date']).to eq('2025-10-22')
+      expect(game['home_team']['full_name']).to eq('New York Knicks')
+      expect(game['visitor_team']['full_name']).to eq('Miami Heat')
+      expect(game['home_team_score']).to eq(102)
+      expect(game['visitor_team_score']).to eq(98)
+      expect(game['status']).to eq('Final')
+    end
+  end
 end

@@ -14,19 +14,18 @@ class App
     )
   end
 
-  def run
-    target_date = Date.today - 1
+  def run(target_date = Date.today - 1)
     scoreboard_url = scoreboard_url_for(target_date)
 
-    puts "Fetching yesterday's NBA games (#{target_date})..."
+    puts "Fetching NBA games for #{target_date}..."
     puts "Scoreboard URL: #{scoreboard_url}"
 
-    games = @nba_client.yesterday_games
+    games = @nba_client.games_for(target_date)
 
     if games.empty?
-      puts 'No games found for yesterday.'
+      puts "No games found for #{target_date}."
       puts "Checked scoreboard: #{scoreboard_url}"
-      @telegram_client.send_message('No NBA games were played yesterday.')
+      @telegram_client.send_message("No NBA games were played #{formatted_date_phrase(target_date)}.")
       return
     end
 
@@ -53,6 +52,28 @@ class App
   def scoreboard_url_for(date)
     "https://www.basketball-reference.com/boxscores/?month=#{date.month}&day=#{date.day}&year=#{date.year}"
   end
+
+  def formatted_date_phrase(date)
+    default_date = Date.today - 1
+    return 'yesterday' if date == default_date
+
+    "on #{date.strftime('%B %-d, %Y')}"
+  end
 end
 
-App.new.run if __FILE__ == $PROGRAM_NAME
+if __FILE__ == $PROGRAM_NAME
+  date_argument = ARGV.first
+
+  target_date = if date_argument.nil? || date_argument.empty?
+                  Date.today - 1
+                else
+                  begin
+                    Date.parse(date_argument)
+                  rescue ArgumentError
+                    warn "Invalid date format: #{date_argument}. Please use YYYY-MM-DD."
+                    exit 1
+                  end
+                end
+
+  App.new.run(target_date)
+end

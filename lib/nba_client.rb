@@ -14,7 +14,10 @@ class NbaClient
   end
 
   def yesterday_games
-    date = Date.today - 1
+    games_for(Date.today - 1)
+  end
+
+  def games_for(date)
     query = query_for(date)
 
     log("Fetching scoreboard for #{date} with query #{query}")
