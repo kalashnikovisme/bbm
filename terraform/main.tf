@@ -20,21 +20,32 @@ locals {
   use_name            = !local.use_fingerprint && local.ssh_key_name != ""
 }
 
-data "digitalocean_ssh_key" "selected_by_fingerprint" {
-  count       = local.use_fingerprint ? 1 : 0
-  fingerprint = local.ssh_key_fingerprint
-}
-
-data "digitalocean_ssh_key" "selected_by_name" {
-  count = local.use_name ? 1 : 0
-  name  = local.ssh_key_name
-}
+data "digitalocean_ssh_keys" "all" {}
 
 locals {
-  droplet_ssh_keys = compact(concat(
-    data.digitalocean_ssh_key.selected_by_fingerprint[*].fingerprint,
-    data.digitalocean_ssh_key.selected_by_name[*].fingerprint,
-  ))
+  ssh_keys_by_fingerprint = {
+    for key in data.digitalocean_ssh_keys.all.ssh_keys : key.fingerprint => key
+  }
+
+  ssh_keys_by_name = {
+    for key in data.digitalocean_ssh_keys.all.ssh_keys : key.name => key
+  }
+
+  selected_ssh_key = local.use_fingerprint
+    ? lookup(local.ssh_keys_by_fingerprint, local.ssh_key_fingerprint, null)
+    : (local.use_name ? lookup(local.ssh_keys_by_name, local.ssh_key_name, null) : null)
+
+  selected_ssh_key_fingerprint = local.selected_ssh_key != null ? local.selected_ssh_key.fingerprint : ""
+
+  droplet_ssh_keys = local.selected_ssh_key_fingerprint != ""
+    ? [local.selected_ssh_key_fingerprint]
+    : []
+
+  ssh_key_error_message = local.use_fingerprint && local.selected_ssh_key == null
+    ? format("No SSH key with fingerprint %q exists in your DigitalOcean account.", local.ssh_key_fingerprint)
+    : local.use_name && local.selected_ssh_key == null
+    ? format("No SSH key named %q exists in your DigitalOcean account.", local.ssh_key_name)
+    : "Set either ssh_fingerprint or ssh_key_name to reference an existing SSH key uploaded to DigitalOcean."
 }
 
 resource "digitalocean_droplet" "bbm" {
@@ -47,7 +58,7 @@ resource "digitalocean_droplet" "bbm" {
   lifecycle {
     precondition {
       condition     = length(local.droplet_ssh_keys) > 0
-      error_message = "Set either ssh_fingerprint or ssh_key_name to reference an existing SSH key uploaded to DigitalOcean."
+      error_message = local.ssh_key_error_message
     }
   }
 

@@ -104,11 +104,13 @@ telegram_chat_id     = "your_telegram_chat_id"
 region               = "nyc1"
 droplet_size         = "s-1vcpu-1gb"
 ssh_private_key_path = "~/.ssh/id_rsa"
-ssh_key_name         = "your_digitalocean_ssh_key_name"  # Provide either this or ssh_fingerprint
-ssh_fingerprint      = ""                                # Optional if ssh_key_name is set; takes precedence when both are provided
+ssh_key_name         = ""                                   # Optional when ssh_fingerprint is set
+ssh_fingerprint      = "3a:52:1f:ab:cd:ef:12:34:56:78:90:12:34:56:78:90"  # Provide either this or ssh_key_name
 ```
 
 Set either `ssh_key_name` or `ssh_fingerprint` to reference an SSH key that already exists in your DigitalOcean account (Settings → Security). Terraform verifies that the key exists before creating the droplet and requires one of these values to be provided. If both are set, the fingerprint takes precedence.
+
+When using fingerprints, the value should match the fingerprint displayed in the DigitalOcean control panel or returned by `ssh-keygen -lf ~/.ssh/id_rsa.pub` on your local machine.
 
 4. Initialize Terraform:
 ```bash
