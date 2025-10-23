@@ -6,7 +6,7 @@ require_relative 'lib/telegram_client'
 
 class App
   def initialize
-    @nba_client = NbaClient.new(ENV.fetch('NBA_API_KEY', nil))
+    @nba_client = NbaClient.new
     @telegram_client = TelegramClient.new(
       ENV.fetch('TELEGRAM_BOT_TOKEN', nil),
       ENV.fetch('TELEGRAM_CHAT_ID', nil)
