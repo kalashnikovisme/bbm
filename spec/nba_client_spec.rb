@@ -11,24 +11,32 @@ RSpec.describe NbaClient do
         <<~HTML
           <html>
             <body>
-              <div class="game_summary">
+              <div class="game_summary expanded">
                 <table class="teams">
                   <tbody>
-                    <tr class="team visitor winner">
-                      <th scope="row" data-stat="team_name"><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></th>
-                      <td class="center" data-stat="q1">34</td>
-                      <td class="center" data-stat="q2">28</td>
-                      <td class="center" data-stat="q3">27</td>
-                      <td class="center" data-stat="q4">23</td>
-                      <td class="center strong" data-stat="team_pts">112</td>
+                    <tr class="winner">
+                      <td><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></td>
+                      <td class="right">112</td>
+                      <td class="right gamelink">
+                        <a href="/boxscores/202410150BOS.html">F<span class="no_mobile">inal</span></a>
+                      </td>
                     </tr>
-                    <tr class="team home">
-                      <th scope="row" data-stat="team_name"><a href="/teams/BOS/2024.html">Boston Celtics</a></th>
-                      <td class="center" data-stat="q1">27</td>
-                      <td class="center" data-stat="q2">24</td>
-                      <td class="center" data-stat="q3">26</td>
-                      <td class="center" data-stat="q4">31</td>
-                      <td class="center strong" data-stat="team_pts">108</td>
+                    <tr class="loser">
+                      <td><a href="/teams/BOS/2024.html">Boston Celtics</a></td>
+                      <td class="right">108</td>
+                      <td class="right">&nbsp;</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <table>
+                  <tbody>
+                    <tr>
+                      <td><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></td>
+                      <td class="center">34</td>
+                    </tr>
+                    <tr>
+                      <td><a href="/teams/BOS/2024.html">Boston Celtics</a></td>
+                      <td class="center">27</td>
                     </tr>
                   </tbody>
                 </table>

@@ -162,7 +162,11 @@ class NbaClient
 
     rows = table.css('tbody tr')
     rows = table.css('tr') if rows.empty?
-    rows.select { |row| row.at_css('th') }
+
+    rows.reject do |row|
+      cells = row.css('th, td')
+      cells.empty? || cells.all? { |cell| cell.text.strip.empty? }
+    end
   end
 
   def find_row(rows, keyword)
@@ -183,11 +187,11 @@ class NbaClient
   end
 
   def extract_team_name(row)
-    header = row.at_css('th')
-    return nil unless header
+    cell = row.at_css('th, td')
+    return nil unless cell
 
-    name = header.at_css('a')&.text
-    name = header.text if name.nil? || name.empty?
+    name = cell.at_css('a')&.text
+    name = cell.text if name.nil? || name.empty?
     name&.strip&.gsub(/\s+/, ' ')
   end
 
