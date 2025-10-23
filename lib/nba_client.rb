@@ -39,17 +39,28 @@ class NbaClient
   def parse_games(html, date)
     document = Nokogiri::HTML(html)
 
-    document.css('div.game_summary').filter_map do |summary|
+    extract_game_summaries(document).filter_map do |summary|
       parse_game_summary(summary, date)
     end
   end
 
-  def parse_game_summary(summary, date)
-    linescore = summary.at_css('table.linescore')
-    return nil unless linescore
+  def extract_game_summaries(document)
+    summaries = document.css('div.game_summary').to_a
+    return summaries unless summaries.empty?
 
-    rows = linescore.css('tbody tr').select { |row| row.at_css('th') }
-    return nil if rows.length < 2
+    document.xpath('//comment()').flat_map do |comment|
+      next [] unless comment.text.include?('game_summary')
+
+      fragment = Nokogiri::HTML(comment.text)
+      fragment.css('div.game_summary')
+    rescue Nokogiri::XML::SyntaxError
+      []
+    end
+  end
+
+  def parse_game_summary(summary, date)
+    table, rows = locate_team_rows(summary)
+    return nil unless table && rows.length >= 2
 
     visitor_row = find_row(rows, 'visitor') || rows[0]
     home_row = find_row(rows, 'home') || rows[1]
@@ -83,6 +94,31 @@ class NbaClient
     { name: name, points: points }
   end
 
+  def locate_team_rows(summary)
+    table = summary.at_css('table.linescore')
+    rows = extract_team_rows(table)
+    return [table, rows] if rows.length >= 2
+
+    table = summary.at_css('table.teams')
+    rows = extract_team_rows(table)
+    return [table, rows] if rows.length >= 2
+
+    summary.css('table').each do |candidate|
+      rows = extract_team_rows(candidate)
+      return [candidate, rows] if rows.length >= 2
+    end
+
+    [nil, []]
+  end
+
+  def extract_team_rows(table)
+    return [] unless table
+
+    rows = table.css('tbody tr')
+    rows = table.css('tr') if rows.empty?
+    rows.select { |row| row.at_css('th') }
+  end
+
   def find_row(rows, keyword)
     rows.find do |row|
       class_list = row['class'].to_s.split
@@ -110,10 +146,18 @@ class NbaClient
   end
 
   def extract_points(row)
-    points_cell = row.at_css('td[data-stat$="_pts"]') || row.css('td').last
-    return nil unless points_cell
+    points_cell = row.at_css('td[data-stat$="_pts"], td[data-stat$="_score"], td[data-stat="pts"], td[data-stat="team_pts"]')
+    numeric_text = points_cell&.text&.strip
 
-    Integer(points_cell.text.strip)
+    numeric_text = nil unless numeric_text && numeric_text =~ /\A\d+\z/
+
+    unless numeric_text
+      numeric_text = row.css('td').map { |cell| cell.text.strip }.reverse.find { |text| text =~ /\A\d+\z/ }
+    end
+
+    return nil unless numeric_text && !numeric_text.empty?
+
+    Integer(numeric_text)
   rescue ArgumentError
     nil
   end
