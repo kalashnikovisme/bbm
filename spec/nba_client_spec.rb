@@ -14,17 +14,21 @@ RSpec.describe NbaClient do
               <div class="game_summary">
                 <table class="linescore">
                   <tbody>
-                    <tr>
-                      <th data-stat="visitor_team_name"><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></th>
-                      <td data-stat="visitor_pts">112</td>
+                    <tr class="team visitor winner">
+                      <th scope="row"><a href="/teams/LAL/2024.html">Los Angeles Lakers</a></th>
+                      <td class="center">34</td>
+                      <td class="center strong">112</td>
                     </tr>
-                    <tr>
-                      <th data-stat="home_team_name"><a href="/teams/BOS/2024.html">Boston Celtics</a></th>
-                      <td data-stat="home_pts">108</td>
+                    <tr class="team home">
+                      <th scope="row"><a href="/teams/BOS/2024.html">Boston Celtics</a></th>
+                      <td class="center">27</td>
+                      <td class="center strong">108</td>
                     </tr>
                   </tbody>
                 </table>
-                <div class="game_status">Final</div>
+                <div class="game_summary_meta">
+                  <p class="game_status">Final</p>
+                </div>
               </div>
             </body>
           </html>
@@ -58,6 +62,61 @@ RSpec.describe NbaClient do
         expect(games.first['visitor_team_score']).to eq(112)
         expect(games.first['status']).to eq('Final')
         expect(games.first['date']).to eq(yesterday.strftime('%Y-%m-%d'))
+      end
+    end
+
+    context 'when scoreboard rows lack explicit visitor/home markers' do
+      let(:scoreboard_html) do
+        <<~HTML
+          <html>
+            <body>
+              <div class="game_summary">
+                <table class="linescore">
+                  <tbody>
+                    <tr>
+                      <th scope="row"><a href="/teams/MIA/2024.html">Miami Heat</a></th>
+                      <td class="center">28</td>
+                      <td class="center strong">102</td>
+                    </tr>
+                    <tr>
+                      <th scope="row"><a href="/teams/NYK/2024.html">New York Knicks</a></th>
+                      <td class="center">25</td>
+                      <td class="center strong">99</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="game_status">Final</div>
+              </div>
+            </body>
+          </html>
+        HTML
+      end
+
+      before do
+        stub_request(:get, 'https://www.basketball-reference.com/boxscores/')
+          .with(
+            query: hash_including(
+              'month' => yesterday.month.to_s,
+              'day' => yesterday.day.to_s,
+              'year' => yesterday.year.to_s
+            )
+          )
+          .to_return(
+            status: 200,
+            body: scoreboard_html,
+            headers: { 'Content-Type' => 'text/html' }
+          )
+      end
+
+      it 'infers the visitor and home teams by row order' do
+        games = client.yesterday_games
+
+        expect(games.length).to eq(1)
+        first_game = games.first
+        expect(first_game['visitor_team']['full_name']).to eq('Miami Heat')
+        expect(first_game['home_team']['full_name']).to eq('New York Knicks')
+        expect(first_game['visitor_team_score']).to eq(102)
+        expect(first_game['home_team_score']).to eq(99)
       end
     end
 

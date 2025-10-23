@@ -48,8 +48,16 @@ class NbaClient
     linescore = summary.at_css('table.linescore')
     return nil unless linescore
 
-    rows = linescore.css('tbody tr')
-    visitor_row, home_row = %w[visitor home].map { |role| find_row(rows, role) }
+    rows = linescore.css('tbody tr').select { |row| row.at_css('th') }
+    return nil if rows.length < 2
+
+    visitor_row = find_row(rows, 'visitor') || rows[0]
+    home_row = find_row(rows, 'home') || rows[1]
+
+    if visitor_row.equal?(home_row)
+      home_row = rows.reject { |row| row.equal?(visitor_row) }.first
+    end
+
     return nil unless visitor_row && home_row
 
     visitor_team = build_team(visitor_row)
@@ -77,13 +85,28 @@ class NbaClient
 
   def find_row(rows, keyword)
     rows.find do |row|
+      class_list = row['class'].to_s.split
+      class_match = class_list.any? { |cls| cls.downcase.include?(keyword) }
+
       header = row.at_css('th')
-      header && header['data-stat']&.include?(keyword)
+      header_attrs = if header
+                       [header['data-stat'], header['class'], header['aria-label']].compact
+                     else
+                       []
+                     end
+      attr_match = header_attrs.map(&:downcase).any? { |attr| attr.include?(keyword) }
+
+      class_match || attr_match
     end
   end
 
   def extract_team_name(row)
-    row.at_css('th a')&.text&.strip
+    header = row.at_css('th')
+    return nil unless header
+
+    name = header.at_css('a')&.text
+    name = header.text if name.nil? || name.empty?
+    name&.strip&.gsub(/\s+/, ' ')
   end
 
   def extract_points(row)
