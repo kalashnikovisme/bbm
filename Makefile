@@ -39,10 +39,10 @@ terraform-init: ## Initialize Terraform
 terraform-plan: ## Plan Terraform deployment
 	cd terraform && terraform plan
 
-terraform-apply: ## Apply Terraform deployment
-	cd terraform && terraform apply
+deploy: ## Apply Terraform deployment
+	cd terraform && terraform apply -auto-approve -input=false
 
-terraform-destroy: ## Destroy Terraform infrastructure
+destroy: ## Destroy Terraform infrastructure
 	cd terraform && terraform destroy
 
 terraform-run: ## Full cycle: apply then destroy

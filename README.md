@@ -17,7 +17,7 @@ A Ruby application that fetches NBA game scores from yesterday and sends them vi
 - Telegram Bot Token (from [@BotFather](https://t.me/botfather))
 - Your Telegram Chat ID
 - DigitalOcean Account (for automated deployment)
-- Terraform >= 1.0 (for automated deployment)
+- Terraform >= 1.2 (for automated deployment)
 
 ## Local Setup
 
@@ -101,7 +101,16 @@ do_token              = "your_digitalocean_api_token"
 nba_api_key          = ""  # Optional
 telegram_bot_token   = "your_telegram_bot_token"
 telegram_chat_id     = "your_telegram_chat_id"
+region               = "nyc1"
+droplet_size         = "s-1vcpu-1gb"
+ssh_private_key_path = "~/.ssh/id_rsa"
+ssh_key_name         = ""                                   # Optional when ssh_fingerprint is set
+ssh_fingerprint      = "3a:52:1f:ab:cd:ef:12:34:56:78:90:12:34:56:78:90"  # Provide either this or ssh_key_name
 ```
+
+Set either `ssh_key_name` or `ssh_fingerprint` to reference an SSH key that already exists in your DigitalOcean account (Settings → Security). Terraform verifies that the key exists before creating the droplet and requires one of these values to be provided. If both are set, the fingerprint takes precedence.
+
+When using fingerprints, the value should match the fingerprint displayed in the DigitalOcean control panel or returned by `ssh-keygen -lf ~/.ssh/id_rsa.pub` on your local machine.
 
 4. Initialize Terraform:
 ```bash
@@ -159,7 +168,8 @@ Set these in your repository settings (Settings → Secrets → Actions):
 - `TELEGRAM_CHAT_ID`: Your Telegram chat ID
 - `NBA_API_KEY`: Optional NBA API key
 - `SSH_PRIVATE_KEY`: Your SSH private key content
-- `SSH_PUBLIC_KEY`: Your SSH public key content
+- `SSH_FINGERPRINT`: Fingerprint of the SSH key uploaded to DigitalOcean (optional if `SSH_KEY_NAME` is set)
+- `SSH_KEY_NAME`: Name of the SSH key uploaded to DigitalOcean (optional if `SSH_FINGERPRINT` is set)
 
 ## Project Structure
 
