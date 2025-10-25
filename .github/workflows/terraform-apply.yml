@@ -1,0 +1,46 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Create terraform.tfvars
+        working-directory: ./terraform
+        run: |
+          cat > terraform.tfvars <<'VARS'
+          do_token              = "${{ secrets.DO_TOKEN }}"
+          nba_api_key          = "${{ secrets.NBA_API_KEY }}"
+          telegram_bot_token   = "${{ secrets.TELEGRAM_BOT_TOKEN }}"
+          telegram_chat_id     = "${{ secrets.TELEGRAM_CHAT_ID }}"
+          ssh_public_key_path  = "~/.ssh/id_rsa.pub"
+          ssh_private_key_path = "~/.ssh/id_rsa"
+          VARS
+
+      - name: Setup SSH keys
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_rsa.pub
+          chmod 600 ~/.ssh/id_rsa
+          chmod 644 ~/.ssh/id_rsa.pub
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve
