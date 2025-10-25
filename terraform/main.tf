@@ -1,6 +1,10 @@
+########################################
+# main.tf — DigitalOcean droplet runner
+########################################
+
 terraform {
   required_version = ">= 1.2"
-  
+
   required_providers {
     digitalocean = {
       source  = "digitalocean/digitalocean"
@@ -9,44 +13,44 @@ terraform {
   }
 }
 
+########################################
+# Provider
+########################################
+
 provider "digitalocean" {
   token = var.do_token
 }
 
+########################################
+# Locals & Data Sources
+########################################
+
 locals {
   ssh_key_name        = trimspace(var.ssh_key_name)
   ssh_key_fingerprint = trimspace(var.ssh_fingerprint)
-  use_fingerprint     = local.ssh_key_fingerprint != ""
-  use_name            = !local.use_fingerprint && local.ssh_key_name != ""
+
+  use_fingerprint = local.ssh_key_fingerprint != ""
+  use_name        = !local.use_fingerprint && local.ssh_key_name != ""
 }
 
-data "digitalocean_ssh_keys" "all" {}
+# DO's ssh_key data source supports lookup by *name* (not fingerprint).
+data "digitalocean_ssh_key" "selected_by_name" {
+  count = local.use_name ? 1 : 0
+  name  = local.ssh_key_name
+}
+
+# Build list for droplet.ssh_keys:
+# - if fingerprint given -> pass it directly
+# - else if name given   -> pass looked-up ID
 
 locals {
-  ssh_keys_by_fingerprint = {
-    for key in data.digitalocean_ssh_keys.all.ssh_keys : key.fingerprint => key
-  }
-
-  ssh_keys_by_name = {
-    for key in data.digitalocean_ssh_keys.all.ssh_keys : key.name => key
-  }
-
-  selected_ssh_key = local.use_fingerprint
-    ? lookup(local.ssh_keys_by_fingerprint, local.ssh_key_fingerprint, null)
-    : (local.use_name ? lookup(local.ssh_keys_by_name, local.ssh_key_name, null) : null)
-
-  selected_ssh_key_fingerprint = local.selected_ssh_key != null ? local.selected_ssh_key.fingerprint : ""
-
-  droplet_ssh_keys = local.selected_ssh_key_fingerprint != ""
-    ? [local.selected_ssh_key_fingerprint]
-    : []
-
-  ssh_key_error_message = local.use_fingerprint && local.selected_ssh_key == null
-    ? format("No SSH key with fingerprint %q exists in your DigitalOcean account.", local.ssh_key_fingerprint)
-    : local.use_name && local.selected_ssh_key == null
-    ? format("No SSH key named %q exists in your DigitalOcean account.", local.ssh_key_name)
-    : "Set either ssh_fingerprint or ssh_key_name to reference an existing SSH key uploaded to DigitalOcean."
+  droplet_ssh_keys = local.use_fingerprint ? [local.ssh_key_fingerprint] : local.use_name ? [data.digitalocean_ssh_key.selected_by_name[0].id] : []
 }
+
+
+########################################
+# Droplet
+########################################
 
 resource "digitalocean_droplet" "bbm" {
   image    = "ubuntu-22-04-x64"
@@ -58,11 +62,13 @@ resource "digitalocean_droplet" "bbm" {
   lifecycle {
     precondition {
       condition     = length(local.droplet_ssh_keys) > 0
-      error_message = local.ssh_key_error_message
+      error_message = "Set either ssh_fingerprint or ssh_key_name to reference an existing SSH key uploaded to DigitalOcean."
     }
   }
 
-  # Wait for droplet to be ready
+  ########################################
+  # Wait for cloud-init to finish
+  ########################################
   provisioner "remote-exec" {
     inline = [
       "until cloud-init status --wait; do sleep 1; done",
@@ -78,24 +84,61 @@ resource "digitalocean_droplet" "bbm" {
     }
   }
 
-  # Install Ruby and dependencies
+  ########################################
+  # Install Ruby & deps
+  ########################################
+
   provisioner "remote-exec" {
-    inline = [
-      "apt-get update",
-      "apt-get install -y ruby ruby-dev build-essential git",
-      "gem install bundler"
-    ]
+    inline = [<<-BASH
+    set -euo pipefail
 
-    connection {
-      type        = "ssh"
-      user        = "root"
-      private_key = file(var.ssh_private_key_path)
-      host        = self.ipv4_address
-      timeout     = "10m"
+    export DEBIAN_FRONTEND=noninteractive
+    export NEEDRESTART_MODE=a
+
+    # Never prompt on dpkg config file changes
+    mkdir -p /etc/apt/apt.conf.d
+    cat >/etc/apt/apt.conf.d/99no-prompt <<'APT'
+    Dpkg::Options {
+      "--force-confdef";
+      "--force-confold";
     }
-  }
+    APT
 
-  # Copy application files
+    # Auto-accept restarts (and also remove needrestart if present)
+    mkdir -p /etc/needrestart/conf.d
+    printf "$nrconf{restart} = 'a';\n$nrconf{kernelhints} = 0;\n" >/etc/needrestart/conf.d/90auto.conf || true
+    if dpkg -s needrestart >/dev/null 2>&1; then
+    apt-get -yq purge needrestart || true
+    fi
+
+    # Preseed tzdata to avoid dialog
+    ln -fs /usr/share/zoneinfo/Etc/UTC /etc/localtime
+    echo "tzdata tzdata/Areas select Etc" | debconf-set-selections
+    echo "tzdata tzdata/Zones/Etc select UTC" | debconf-set-selections
+
+    apt-get update -yq || apt-get update -y
+    apt-get install -yq --no-install-recommends tzdata
+    dpkg-reconfigure -f noninteractive tzdata
+
+    # Install deps without prompts
+    apt-get install -yq --no-install-recommends ruby ruby-dev build-essential git
+    gem install bundler --no-document
+    BASH
+  ]
+
+  connection {
+    type        = "ssh"
+    user        = "root"
+    private_key = file(var.ssh_private_key_path)
+    host        = self.ipv4_address
+    timeout     = "15m"
+  }
+}
+
+
+  ########################################
+  # Copy application
+  ########################################
   provisioner "file" {
     source      = "${path.module}/../"
     destination = "/root/bbm"
@@ -108,7 +151,9 @@ resource "digitalocean_droplet" "bbm" {
     }
   }
 
-  # Setup environment and run application
+  ########################################
+  # Configure env & run app
+  ########################################
   provisioner "remote-exec" {
     inline = [
       "cd /root/bbm",
@@ -128,12 +173,18 @@ resource "digitalocean_droplet" "bbm" {
     }
   }
 
-  # Cleanup - destroy droplet after execution
+  ########################################
+  # Local cleanup notice on destroy
+  ########################################
   provisioner "local-exec" {
     when    = destroy
     command = "echo 'Droplet destroyed successfully'"
   }
 }
+
+########################################
+# Outputs
+########################################
 
 output "droplet_ip" {
   value       = digitalocean_droplet.bbm.ipv4_address
@@ -144,3 +195,4 @@ output "droplet_name" {
   value       = digitalocean_droplet.bbm.name
   description = "The name of the droplet"
 }
+
